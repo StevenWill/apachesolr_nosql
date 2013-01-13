@@ -1,0 +1,199 @@
+<?php
+/**
+ * @file
+ * Module file for apachesolr_nosql
+ *
+ */
+
+/**
+ * Implement hook_menu().
+ *
+ * @return boolean 
+ */
+function apachesolr_nosql_menu() {
+  $items = array();
+  $items['apachesolr_nosql_results'] = array(
+    'title' => 'ApacheSolr: Solr Results',
+    'page callback' => 'apachesolr_nosql_table',
+    'access callback' => TRUE,
+  );
+
+  return $items;
+}
+
+/**
+ * Query solr via apachesolr module and return results in table.
+ *
+ * @return type 
+ */
+function apachesolr_nosql_table() {
+  $output = "";
+  $limit = 100;
+  $page = isset($_GET['page']) ? $_GET['page'] : '0';
+  $start = $page * $limit;
+
+  $solr = apachesolr_get_solr();
+  
+  $solrsort = "sort_label asc"; // Review $results['0'] for sort options.
+  //
+  // Define parameters for query.
+  $params = array(
+    'q' => "bundle:article", //Query only bundles of type = article.
+    'rows' => $limit, //Limit returns to sets of 20.
+    'qt' => 'standard',
+    'start' => $start, // Start a record 0.
+    'fl' => 'bundle_name,label,entity_id,ss_name'
+  );
+  
+  // Pass query parameters to the SolrBaseQuery class.
+  $query = new SolrBaseQuery('apachesolr', $solr, $params, $solrsort, '');
+  $query->page = $page;
+  
+  // Perform query and return results.
+  $results = apachesolr_do_query($query);
+  if (empty($results['1']->response->docs)) {
+    $output .= "No Results!";
+    return $output;
+  }
+  
+  // Define table headers.
+  $header = array(
+    '0' => 'nid',
+    '1' => 'Title',
+    '2' => 'Bundle',
+    '3' => 'Author',
+  );
+
+  $rows = array();
+  foreach($results['1']->response->docs as $return) {
+    $rows[] = array(
+      $return->entity_id,
+      l($return->label, "node/" . $return->entity_id ),
+      $return->bundle_name,
+      $return->ss_name,
+    );
+  }
+  
+  $output .= "Total Records: " . $results['1']->response->numFound;
+  $output .= theme('table', array('header' => $header, 'rows' => $rows ) );
+
+  //Initiate page and pass row data.
+  $total = $results['1']->response->numFound;
+  pager_default_initialize($total, $limit, $element=0);
+  $output .= theme('pager', array('quantity' => $total));
+  return $output;
+}
+
+/**
+ * Implement Hook_entity_insert().
+ * Add entity directly to Solr index on insert.
+ *
+ * @param type $entity
+ * @param type $type 
+ */
+function apachesolr_nosql_entity_insert($entity, $type) {
+  if ($type == 'node') {
+    apachesolr_nosql_index_now($entity, $type);
+  }
+}
+
+/**
+ * Implement Hook_entity_update().
+ * Add entity directly to Solr index on update.
+ *
+ * @param type $entity
+ * @param type $type 
+ */
+function apachesolr_nosql_entity_update($entity, $type) {
+  if ($type == 'node') {
+    apachesolr_nosql_index_now($entity, $type);
+  }
+}
+
+/**
+ * Implement Hook_entity_delete().
+ * Delete entity from Solr.
+ *
+ * @param type $entity
+ * @param type $type 
+ */
+function apachesolr_nosql_entity_delete($entity, $type) {
+  // Obtain the Solr environment.
+  $env_id = apachesolr_default_environment();
+  
+  // Extract entity id for Solr
+  $ids = entity_extract_ids($type, $entity);
+  $id = $ids[0];
+  
+  // Delete the entity from the Solr index.
+  apachesolr_remove_entity($env_id, $type, $id);
+  
+  // Commit the changes immediatly.
+  apachesolr_nosql_commit();
+}
+
+/**
+ * Prepare entity as document for adding to Solr index.
+ *
+ * @param type $entity
+ * @param type $type
+ * @return type 
+ */
+function apachesolr_nosql_index_now($entity, $type) {
+  
+  $env_id = apachesolr_default_environment();
+  $indexable_bundles = apachesolr_get_index_bundles($env_id, $type);
+
+  // Check if entity should be indexed.
+  $info = entity_get_info($type);
+  if (!empty($info['entity keys']['bundle'])) {
+    $bundle = $entity->{$info['entity keys']['bundle']};
+  }
+  else {
+    $bundle = $type;
+  }
+
+  if (!in_array($bundle, $indexable_bundles)) {
+    return;
+  }
+
+  // Entity should be indexed, so send it to solr.
+  $ids = entity_extract_ids($type, $entity);
+  $id = $ids[0];
+
+  // Create entity Object and assign type and id.
+  $item = new stdClass();
+  $item->entity_type = $type;
+  $item->entity_id = $id;
+  
+  // Include apachesolr.index from apachesolr module.
+  module_load_include('inc', 'apachesolr', 'apachesolr.index');
+  // Prepeare entity as document and send to solr.
+  $doc = apachesolr_index_entity_to_documents($item, $env_id);
+  apachesolr_index_send_to_solr($env_id, $doc);
+  
+  // Commit the changes immediatly.
+  apachesolr_nosql_commit();
+}
+
+/**
+ * Commit Solr index making the document available.
+ * 
+ */
+function apachesolr_nosql_commit(){
+  $env_id = variable_get('apachesolr_default_environment', 'solr');
+  $server = apachesolr_environment_load($env_id);
+  $url = $server['url'] . "/update";
+  
+  $curl_commit = curl_init($url ."?commit=true");
+  curl_setopt($curl_commit, CURLOPT_RETURNTRANSFER, true);
+  $response = curl_exec($curl_commit);
+  
+  $status = curl_getinfo($curl_commit, CURLINFO_HTTP_CODE);
+
+  $commit_time = date('Y-m-d h-i-s p', strtotime("now"));
+  if ($status != 200) {
+    watchdog('apachesolr_nosql_commit', 'Commit at @now failed. Solr will commit at the next interval.', array('@now' => $commit_time));
+    drupal_set_message('Commit at ' . $commit_time . ' failed. Solr will commit at the next interval.');
+  }
+}

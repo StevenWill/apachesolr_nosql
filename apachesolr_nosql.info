@@ -1,0 +1,7 @@
+name = "Apache Solr NoSQL"
+description = "Query, Insert, Update and Commit node data with Solr."
+package = "Solr"
+core = 7.x
+
+dependencies[] = apachesolr
+files[] = apachesolr_nosql.test

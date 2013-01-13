@@ -1,0 +1,19 @@
+<?php
+/**
+ *@file
+ * Install and uninstall hooks for apachesolr_nosql module.
+ */
+
+/**
+ * Implement Hook_install(). 
+ */
+function apachesolr_nosql_install() {
+  
+}
+
+/**
+ * Implement Hook_uninstall(). 
+ */
+function apachesolr_nosql_uninstall() {
+  
+}
