@@ -38,11 +38,11 @@ function apachesolr_nosql_table() {
   //
   // Define parameters for query.
   $params = array(
-    'q' => "bundle:article", //Query only bundles of type = article.
+    'q' => 'bundle:article', //Query only bundles of type = article.
     'rows' => $limit, //Limit returns to sets of 20.
     'qt' => 'standard',
     'start' => $start, // Start a record 0.
-    'fl' => 'bundle_name,label,entity_id,ss_name'
+    //'fl' => 'bundle_name,label,entity_id,ss_name'
   );
   
   // Pass query parameters to the SolrBaseQuery class.
@@ -51,6 +51,7 @@ function apachesolr_nosql_table() {
   
   // Perform query and return results.
   $results = apachesolr_do_query($query);
+  //
   if (empty($results['1']->response->docs)) {
     $output .= "No Results!";
     return $output;
@@ -142,24 +143,11 @@ function apachesolr_nosql_entity_delete($entity, $type) {
 function apachesolr_nosql_index_now($entity, $type) {
   
   $env_id = apachesolr_default_environment();
-  $indexable_bundles = apachesolr_get_index_bundles($env_id, $type);
-
-  // Check if entity should be indexed.
-  $info = entity_get_info($type);
-  if (!empty($info['entity keys']['bundle'])) {
-    $bundle = $entity->{$info['entity keys']['bundle']};
-  }
-  else {
-    $bundle = $type;
-  }
-
-  if (!in_array($bundle, $indexable_bundles)) {
-    return;
-  }
 
   // Entity should be indexed, so send it to solr.
   $ids = entity_extract_ids($type, $entity);
   $id = $ids[0];
+  //$id = $entity->original->nid;
 
   // Create entity Object and assign type and id.
   $item = new stdClass();
