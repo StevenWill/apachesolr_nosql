@@ -28,17 +28,25 @@ function apachesolr_nosql_menu() {
  */
 function apachesolr_nosql_table() {
   $output = "";
+  
+  $output .= drupal_render(drupal_get_form('apachesolr_nosql_form'));
+  
   $limit = 100;
   $page = isset($_GET['page']) ? $_GET['page'] : '0';
   $start = $page * $limit;
 
   $solr = apachesolr_get_solr();
   
-  $solrsort = "sort_label asc"; // Review $results['0'] for sort options.
-  //
+  $filter = arg(1);
+  $bundle_filter = isset($filter) ? urldecode($filter) : '*';
+  $filter2 = arg(2);
+  $sort_filter = isset($filter2) ? urldecode($filter2) : 'sort_label';
+  
+  $solrsort = $sort_filter . " asc"; // Review $results['0'] for sort options.
+
   // Define parameters for query.
   $params = array(
-    'q' => "bundle:article", //Query only bundles of type = article.
+    'q' => "bundle:" . $bundle_filter, //Query only bundles of type = article.
     'rows' => $limit, //Limit returns to sets of 20.
     'qt' => 'standard',
     'start' => $start, // Start a record 0.
@@ -48,7 +56,7 @@ function apachesolr_nosql_table() {
   // Pass query parameters to the SolrBaseQuery class.
   $query = new SolrBaseQuery('apachesolr', $solr, $params, $solrsort, '');
   $query->page = $page;
-  
+
   // Perform query and return results.
   $results = apachesolr_do_query($query);
   if (empty($results['1']->response->docs)) {
@@ -77,11 +85,52 @@ function apachesolr_nosql_table() {
   $output .= "Total Records: " . $results['1']->response->numFound;
   $output .= theme('table', array('header' => $header, 'rows' => $rows ) );
 
-  //Initiate page and pass row data.
+  //Initiate pager and pass row data.
   $total = $results['1']->response->numFound;
   pager_default_initialize($total, $limit, $element=0);
   $output .= theme('pager', array('quantity' => $total));
   return $output;
+}
+
+function apachesolr_nosql_form() {
+  //Define bundle array.
+  $node_types = array('*' => 'All');
+  $node_types += node_type_get_names();
+  
+  $form = array();
+  $form['fieldset'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Filter'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+  $filter = arg(1);
+  $form['fieldset']['bundle'] = array(
+    '#type' => 'select',
+    '#options' => $node_types,
+    '#default_value' => isset($filter) ? urldecode($filter) : '*',
+    '#title' => t('Filter by Type'),
+  );
+  $filter2 = arg(2);
+  $form['fieldset']['sort'] = array(
+    '#type' => 'select',
+    '#options' => array('sort_label' => 'Title', 'bundle' => 'Type', 'sort_name' => 'Author'),
+    '#title' => t('Sorb by:'),
+    '#default_value' => isset($filter2) ? urldecode($filter2) : 'sort_label',
+  );
+  $form['fieldset']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Apply',
+    '#submit' => array('apachesolr_nosql_form_callback'),
+  );
+  return $form;
+}
+
+function apachesolr_nosql_form_callback($form, $form_state) {
+  
+  $bundle = $form_state['values']['bundle'];
+  $sort = $form_state['values']['sort'];
+  drupal_goto('apachesolr_nosql_results/' . $bundle . '/' . $sort);
 }
 
 /**
