@@ -12,10 +12,10 @@
  */
 function apachesolr_nosql_menu() {
   $items = array();
-  $items['apachesolr_nosql_results'] = array(
-    'title' => 'ApacheSolr: Solr Results',
-    'page callback' => 'apachesolr_nosql_table',
-    'access callback' => TRUE,
+  $items['solr_nosql_results'] = array(
+    'title' => 'Solr NoSQL: Results',
+    'page callback' => 'apachesolr_nosql_view',
+    'access arguments' => array('administer content types'),
   );
 
   return $items;
@@ -26,7 +26,7 @@ function apachesolr_nosql_menu() {
  *
  * @return type 
  */
-function apachesolr_nosql_table() {
+function apachesolr_nosql_view() {
   $output = "";
   
   $output .= drupal_render(drupal_get_form('apachesolr_nosql_form'));
@@ -37,16 +37,14 @@ function apachesolr_nosql_table() {
 
   $solr = apachesolr_get_solr();
   
-  $filter = arg(1);
-  $bundle_filter = isset($filter) ? urldecode($filter) : '*';
-  $filter2 = arg(2);
-  $sort_filter = isset($filter2) ? urldecode($filter2) : 'sort_label';
+  // Locate if filter options are passed.
+  $filters = apachesolr_nosql_filters();
   
-  $solrsort = $sort_filter . " asc"; // Review $results['0'] for sort options.
+  $solrsort = $filters['sort']; // Review $results['0'] for sort options.
 
   // Define parameters for query.
   $params = array(
-    'q' => "bundle:" . $bundle_filter, //Query only bundles of type = article.
+    'q' => "bundle:" . $filters['bundle'], //Query only bundles of type = article.
     'rows' => $limit, //Limit returns to sets of 20.
     'qt' => 'standard',
     'start' => $start, // Start a record 0.
@@ -92,6 +90,11 @@ function apachesolr_nosql_table() {
   return $output;
 }
 
+/**
+ * Filter form called by programmable view.
+ *
+ * @return array 
+ */
 function apachesolr_nosql_form() {
   //Define bundle array.
   $node_types = array('*' => 'All');
@@ -112,9 +115,16 @@ function apachesolr_nosql_form() {
     '#title' => t('Filter by Type'),
   );
   $filter2 = arg(2);
+  $sort_options = array(
+    'sort_label asc' => 'Title Asc',
+    'sort_label desc' => 'Title Desc',
+    'bundle asc' => 'Type Asc',
+    'bundle desc' => 'Type Desc',
+    'sort_name asc' => 'Author Asc',
+    'sort_name desc' => 'Author Desc',);
   $form['fieldset']['sort'] = array(
     '#type' => 'select',
-    '#options' => array('sort_label' => 'Title', 'bundle' => 'Type', 'sort_name' => 'Author'),
+    '#options' => $sort_options,
     '#title' => t('Sorb by:'),
     '#default_value' => isset($filter2) ? urldecode($filter2) : 'sort_label',
   );
@@ -126,11 +136,31 @@ function apachesolr_nosql_form() {
   return $form;
 }
 
+/**
+ * Form callback called by filter form.
+ *
+ * @param type $form
+ * @param type $form_state 
+ */
 function apachesolr_nosql_form_callback($form, $form_state) {
   
   $bundle = $form_state['values']['bundle'];
   $sort = $form_state['values']['sort'];
-  drupal_goto('apachesolr_nosql_results/' . $bundle . '/' . $sort);
+  drupal_goto('solr_nosql_results/' . $bundle . '/' . $sort);
+}
+
+/**
+ * Filters passed by filter form.
+ *
+ * @return type 
+ */
+function apachesolr_nosql_filters() {
+  $filters = array();
+  $filter = check_plain(urldecode(arg(1)));
+  $filters['bundle'] = isset($filter) ? $filter : '*';
+  $filter2 = check_plain(urldecode(arg(2)));
+  $filters['sort'] = isset($filter2) ? $filter2 : 'sort_label asc';
+  return $filters;
 }
 
 /**
@@ -193,7 +223,7 @@ function apachesolr_nosql_index_now($entity, $type) {
   $env_id = apachesolr_default_environment();
   $indexable_bundles = apachesolr_get_index_bundles($env_id, $type);
 
-  // Check if entity should be indexed.
+  // Check if entity should be indexed as defined in apachesolr configuration.
   $info = entity_get_info($type);
   if (!empty($info['entity keys']['bundle'])) {
     $bundle = $entity->{$info['entity keys']['bundle']};

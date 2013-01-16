@@ -38,7 +38,7 @@ class apachesolr_nosql_test extends DrupalWebTestCase {
     apachesolr_environment_save($environment);
     
     // Create and login user.
-    $account = $this->drupalCreateUser(array('access content', 'create article content'));
+    $account = $this->drupalCreateUser(array('access content', 'administer content types'));
     $this->drupalLogin($account);
     
   }
