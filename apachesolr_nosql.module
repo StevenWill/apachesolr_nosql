@@ -40,11 +40,11 @@ function apachesolr_nosql_view() {
   // Locate if filter options are passed.
   $filters = apachesolr_nosql_filters();
   
-  $solrsort = $filters['sort']; // Review $results['0'] for sort options.
+  $solrsort = $filters['values']['sort']; //Sort options.
 
   // Define parameters for query.
   $params = array(
-    'q' => "bundle:" . $filters['bundle'], //Query only bundles of type = article.
+    'q' => "bundle:" . $filters['values']['bundle'], //Query only bundles of type = article.
     'rows' => $limit, //Limit returns to sets of 20.
     'qt' => 'standard',
     'start' => $start, // Start a record 0.
@@ -97,8 +97,8 @@ function apachesolr_nosql_view() {
  */
 function apachesolr_nosql_form() {
   //Define bundle array.
-  $node_types = array('*' => 'All');
-  $node_types += node_type_get_names();
+  $filters = apachesolr_nosql_filters();
+  drupal_set_message('<pre>' . print_r($filters, TRUE) . '</pre>');
   
   $form = array();
   $form['fieldset'] = array(
@@ -107,26 +107,17 @@ function apachesolr_nosql_form() {
     '#collapsible' => TRUE,
     '#collapsed' => FALSE,
   );
-  $filter = arg(1);
   $form['fieldset']['bundle'] = array(
     '#type' => 'select',
-    '#options' => $node_types,
-    '#default_value' => isset($filter) ? urldecode($filter) : '*',
+    '#options' => $filters['default']['bundle'],
+    '#default_value' => $filters['values']['sort'],
     '#title' => t('Filter by Type'),
   );
-  $filter2 = arg(2);
-  $sort_options = array(
-    'sort_label asc' => 'Title Asc',
-    'sort_label desc' => 'Title Desc',
-    'bundle asc' => 'Type Asc',
-    'bundle desc' => 'Type Desc',
-    'sort_name asc' => 'Author Asc',
-    'sort_name desc' => 'Author Desc',);
   $form['fieldset']['sort'] = array(
     '#type' => 'select',
-    '#options' => $sort_options,
+    '#options' => $filters['default']['sort'],
     '#title' => t('Sorb by:'),
-    '#default_value' => isset($filter2) ? urldecode($filter2) : 'sort_label',
+    '#default_value' => $filters['values']['sort'],
   );
   $form['fieldset']['submit'] = array(
     '#type' => 'submit',
@@ -155,11 +146,23 @@ function apachesolr_nosql_form_callback($form, $form_state) {
  * @return type 
  */
 function apachesolr_nosql_filters() {
+  $node_types = array('*' => 'All');
+  $node_types += node_type_get_names();// Get node types.
+  
   $filters = array();
+  $filters['default']['bundle'] = $node_types;
+  $filters['default']['sort'] = array(
+    'sort_label asc' => 'Title Asc',
+    'sort_label desc' => 'Title Desc',
+    'bundle asc' => 'Type Asc',
+    'bundle desc' => 'Type Desc',
+    'sort_name asc' => 'Author Asc',
+    'sort_name desc' => 'Author Desc',
+  );
   $filter = check_plain(urldecode(arg(1)));
-  $filters['bundle'] = isset($filter) ? $filter : '*';
+  $filters['values']['bundle'] = !empty($filter) ? $filter : '*';
   $filter2 = check_plain(urldecode(arg(2)));
-  $filters['sort'] = isset($filter2) ? $filter2 : 'sort_label asc';
+  $filters['values']['sort'] = !empty($filter2) ? $filter2 : 'sort_label asc';
   return $filters;
 }
 
