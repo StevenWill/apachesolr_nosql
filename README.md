@@ -7,4 +7,7 @@ Installation:
  - Setup Solr.
  - Install apachesolr as noted by the apachesolr project documentation.
  - Install apachesolr_nosql and navigate to path apachesolr_nosql_results to view results.
- - Add, update and delete content as you normally would in Drupal. Your changes will appear in Solr immediatly.  
+ - Add, update and delete content as you normally would in Drupal. Your changes will appear in Solr immediatly. 
+
+Todo:
+ - Filter the form values. 
