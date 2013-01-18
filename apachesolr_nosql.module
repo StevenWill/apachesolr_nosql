@@ -98,7 +98,6 @@ function apachesolr_nosql_view() {
 function apachesolr_nosql_form() {
   //Define bundle array.
   $filters = apachesolr_nosql_filters();
-  drupal_set_message('<pre>' . print_r($filters, TRUE) . '</pre>');
   
   $form = array();
   $form['fieldset'] = array(
