@@ -99,7 +99,6 @@ function apachesolr_nosql_view() {
 function apachesolr_nosql_form() {
   //Define bundle array.
   $filters = apachesolr_nosql_filters();
-  drupal_set_message('<pre>' . print_r($filters, TRUE) . '</pre>');
   
   $form = array();
   $form['fieldset'] = array(
@@ -111,7 +110,7 @@ function apachesolr_nosql_form() {
   $form['fieldset']['bundle'] = array(
     '#type' => 'select',
     '#options' => $filters['default']['bundle'],
-    '#default_value' => $filters['values']['sort'],
+    '#default_value' => $filters['values']['bundle'],
     '#title' => t('Filter by Type'),
   );
   $form['fieldset']['sort'] = array(
@@ -160,10 +159,10 @@ function apachesolr_nosql_filters() {
     'sort_name asc' => 'Author Asc',
     'sort_name desc' => 'Author Desc',
   );
-  $filter = check_plain(urldecode(arg(1)));
-  $filters['values']['bundle'] = !empty($filter) ? $filter : '*';
-  $filter2 = check_plain(urldecode(arg(2)));
-  $filters['values']['sort'] = !empty($filter2) ? $filter2 : 'sort_label asc';
+  $filter = urldecode(arg(1));
+  $filters['values']['bundle'] = !empty($filter) && array_key_exists($filter, $filters['default']['bundle']) ? $filter : '*';
+  $filter2 = urldecode(arg(2));
+  $filters['values']['sort'] = !empty($filter2) && array_key_exists($filter2, $filters['default']['sort']) ? $filter2 : 'sort_label asc';
   return $filters;
 }
 
