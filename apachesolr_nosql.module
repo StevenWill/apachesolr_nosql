@@ -48,7 +48,7 @@ function apachesolr_nosql_view() {
     'rows' => $limit, //Limit returns to sets of 20.
     'qt' => 'standard',
     'start' => $start, // Start a record 0.
-    //'fl' => 'bundle_name,label,entity_id,ss_name'
+    'fl' => 'bundle_name,label,entity_id,ss_name'
   );
   
   // Pass query parameters to the SolrBaseQuery class.
